@@ -283,6 +283,8 @@ class WitnessCalculator {
             for (let i=0; i<self.n32; i++) {
                 self.i32[(p >> 2) + 2 + i] = a.shiftRight(i*32).and(self.mask32);
             }
+            console.log(">>>", self.i32[(p >> 2)] , self.i32[(p >> 2) + 1]);
+            console.log(">>>", self.i32.slice((p >> 2) + 2, (p >> 2) + 2 + self.n32));
         }
     }
 }

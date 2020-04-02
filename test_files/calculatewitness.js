@@ -4,8 +4,11 @@ const fs = require("fs");
 const {stringifyBigInts, unstringifyBigInts} = require("snarkjs");
 const WitnessCalculatorBuilder = require("./witness_calculator.js");
 
-const wasmName = "mycircuit2.wasm"
-const inputName = "mycircuit2-input.json"
+// const wasmName = "smtverifier10.wasm"
+// const inputName = "smtverifier10-input.json"
+
+const wasmName = "mycircuit.wasm"
+const inputName = "mycircuit-input3.json"
 
 async function run () {
   const wasm = await fs.promises.readFile(wasmName);
@@ -17,11 +20,11 @@ async function run () {
 
   const w = await wc.calculateWitness(input);
 
-  console.log("witness:", stringifyBigInts(w));
+  console.log("witness:\n", JSON.stringify(stringifyBigInts(w)));
 
-  const wb = await wc.calculateBinWitness(input);
+  // const wb = await wc.calculateBinWitness(input);
 
-  console.log("witnessBin:", Buffer.from(wb).toString('hex'));
+  // console.log("witnessBin:", Buffer.from(wb).toString('hex'));
 
   // await fs.promises.writeFile(witnessName, JSON.stringify(stringifyBigInts(w), null, 1));
 

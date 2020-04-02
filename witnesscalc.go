@@ -333,8 +333,8 @@ func (wc *WitnessCalculator) setLongNormal(p int32, v *big.Int) {
 	wc.storeBigInt(p+8, v)
 }
 
-// setFr stores a Field element in the runtime memory at position p.
-func (wc *WitnessCalculator) setFr(p int32, v *big.Int) {
+// storeFr stores a Field element in the runtime memory at position p.
+func (wc *WitnessCalculator) storeFr(p int32, v *big.Int) {
 	if v.Cmp(wc.shortMax) == -1 {
 		wc.setShortPositive(p, v)
 	} else if v.Cmp(wc.shortMin) >= 0 {
@@ -352,11 +352,11 @@ func (wc *WitnessCalculator) fromMontgomery(v *big.Int) *big.Int {
 	return res
 }
 
-// getFr loads a Field element from the runtime memory at position p.
-func (wc *WitnessCalculator) getFr(p int32) *big.Int {
+// loadFr loads a Field element from the runtime memory at position p.
+func (wc *WitnessCalculator) loadFr(p int32) *big.Int {
 	m := wc.runtime.Memory()
 	if (m[p+4+3] & 0x80) != 0 {
-		res := wc.loadBigInt(p+4, wc.n32)
+		res := wc.loadBigInt(p+8, wc.n32)
 		if (m[p+4+3] & 0x40) != 0 {
 			return wc.fromMontgomery(res)
 		} else {
@@ -393,7 +393,7 @@ func (wc *WitnessCalculator) doCalculateWitness(inputs map[string]interface{}, s
 		sigOffset := wc.getInt(pSigOffset)
 		fSlice := flatSlice(inputValue)
 		for i, value := range fSlice {
-			wc.setFr(pFr, value)
+			wc.storeFr(pFr, value)
 			wc.fns.setSignal(0, 0, sigOffset+int32(i), pFr)
 		}
 	}
@@ -415,7 +415,7 @@ func (wc *WitnessCalculator) CalculateWitness(inputs map[string]interface{}, san
 		if err != nil {
 			return nil, err
 		}
-		w[i] = wc.getFr(pWitness)
+		w[i] = wc.loadFr(pWitness)
 	}
 
 	wc.setMemFreePos(oldMemFreePos)
