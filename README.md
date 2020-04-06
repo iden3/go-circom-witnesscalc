@@ -25,6 +25,7 @@ func Test(t *testing.T) {
 		Environment: wasm3.NewEnvironment(),
 		StackSize:   64 * 1024,
 	})
+        defer runtime.Destroy()
 
 	wasmBytes, err := ioutil.ReadFile(wasmFilename)
 	require.Nil(t, err)
