@@ -7,8 +7,8 @@ const WitnessCalculatorBuilder = require("./witness_calculator.js");
 // const wasmName = "smtverifier10.wasm"
 // const inputName = "smtverifier10-input.json"
 
-const wasmName = "mycircuit.wasm"
-const inputName = "mycircuit-input3.json"
+const wasmName = "nconstraints.wasm"
+const inputName = "nconstraints-input.json"
 
 async function run () {
   const wasm = await fs.promises.readFile(wasmName);

@@ -3,10 +3,17 @@ package witnesscalc
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
+	"math/big"
+	"os"
+	"os/exec"
+	"path"
 	"strings"
 	"testing"
+	"time"
 
 	wasm3 "github.com/iden3/go-wasm3"
 	"github.com/stretchr/testify/assert"
@@ -73,6 +80,75 @@ func TestWitnessCalcSmtVerifier10(t *testing.T) {
 		rInv:           "9915499612839321149637521777990102151350674507940716049588462388200839649614",
 		witness:        string(witnessJSON),
 	}, false)
+}
+
+var testNConstraints = false
+
+func TestWitnessCalcNConstraints(t *testing.T) {
+	if !testNConstraints {
+		return
+	}
+	oldWd, err := os.Getwd()
+	require.Nil(t, err)
+	defer func() {
+		err := os.Chdir(oldWd)
+		require.Nil(t, err)
+	}()
+	err = os.Chdir(path.Join(oldWd, "test_files"))
+	require.Nil(t, err)
+
+	for i := 1; i < 8; i++ {
+		// for i := 1; i < 3; i++ {
+		n := int(math.Pow10(i))
+		log.Printf("WitnessCalc with %v constraints\n", n)
+		err := exec.Command("cp", "nconstraints.circom", "nconstraints.circom.tmp").Run()
+		require.Nil(t, err)
+		err = exec.Command("sed", "-i", fmt.Sprintf("s/{{N}}/%v/g", n), "nconstraints.circom.tmp").Run()
+		require.Nil(t, err)
+		err = exec.Command("./node_modules/.bin/circom", "nconstraints.circom.tmp", "-w", fmt.Sprintf("nconstraints-%v.wasm", n)).Run()
+		if err != nil {
+			fmt.Println(err)
+		}
+		require.Nil(t, err)
+
+		wasmFilename := fmt.Sprintf("nconstraints-%v.wasm", n)
+		var inputs = map[string]interface{}{"in": new(big.Int).SetInt64(2)}
+
+		runtime := wasm3.NewRuntime(&wasm3.Config{
+			Environment: wasm3.NewEnvironment(),
+			StackSize:   64 * 1024,
+		})
+		wasmBytes, err := ioutil.ReadFile(wasmFilename)
+		require.Nil(t, err)
+		module, err := runtime.ParseModule(wasmBytes)
+		require.Nil(t, err)
+		module, err = runtime.LoadModule(module)
+		require.Nil(t, err)
+		witnessCalculator, err := NewWitnessCalculator(runtime, module)
+		require.Nil(t, err)
+		p := witnessCalculator.prime
+		start := time.Now()
+		w, err := witnessCalculator.CalculateWitness(inputs, false)
+		elapsed := time.Since(start)
+		require.Nil(t, err)
+		log.Printf("Took %v\n", elapsed)
+
+		runtime.Destroy()
+
+		out := new(big.Int).SetInt64(2)
+		for i := 1; i < n; i++ {
+			out.Mul(out, out)
+			out.Add(out, new(big.Int).SetInt64(int64(i)))
+			out.Mod(out, p)
+		}
+
+		assert.Equal(t, out, w[1])
+
+		err = os.Remove("nconstraints.circom.tmp")
+		require.Nil(t, err)
+		err = os.Remove(fmt.Sprintf("nconstraints-%v.wasm", n))
+		require.Nil(t, err)
+	}
 }
 
 func testWitnessCalc(t *testing.T, p TestParams, logWitness bool) {
