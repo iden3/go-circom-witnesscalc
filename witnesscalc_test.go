@@ -105,11 +105,14 @@ func TestWitnessCalcNConstraints(t *testing.T) {
 		require.Nil(t, err)
 		err = exec.Command("sed", "-i", fmt.Sprintf("s/{{N}}/%v/g", n), "nconstraints.circom.tmp").Run()
 		require.Nil(t, err)
+		start := time.Now()
 		err = exec.Command("./node_modules/.bin/circom", "nconstraints.circom.tmp", "-w", fmt.Sprintf("nconstraints-%v.wasm", n)).Run()
 		if err != nil {
 			fmt.Println(err)
 		}
+		elapsed := time.Since(start)
 		require.Nil(t, err)
+		log.Printf("Circuit compilation took %v\n", elapsed)
 
 		wasmFilename := fmt.Sprintf("nconstraints-%v.wasm", n)
 		var inputs = map[string]interface{}{"in": new(big.Int).SetInt64(2)}
@@ -127,11 +130,11 @@ func TestWitnessCalcNConstraints(t *testing.T) {
 		witnessCalculator, err := NewWitnessCalculator(runtime, module)
 		require.Nil(t, err)
 		p := witnessCalculator.prime
-		start := time.Now()
+		start = time.Now()
 		w, err := witnessCalculator.CalculateWitness(inputs, false)
-		elapsed := time.Since(start)
+		elapsed = time.Since(start)
 		require.Nil(t, err)
-		log.Printf("Took %v\n", elapsed)
+		log.Printf("Witness calculation took %v\n", elapsed)
 
 		runtime.Destroy()
 
@@ -203,8 +206,11 @@ func testWitnessCalc(t *testing.T, p TestParams, logWitness bool) {
 	assert.Equal(t, p.rInv, witnessCalculator.rInv.String())
 	assert.Equal(t, p.nVars, witnessCalculator.nVars)
 
+	start := time.Now()
 	w, err := witnessCalculator.CalculateWitness(inputs, false)
+	elapsed := time.Since(start)
 	require.Nil(t, err)
+	log.Printf("Witness calculation took %v\n", elapsed)
 	if logWitness {
 		log.Print("Witness: ", w)
 	}
