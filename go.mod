@@ -1,4 +1,4 @@
-module github.com/iden3/go-witnesscalc
+module github.com/iden3/go-circom-witnesscalc
 
 go 1.14
 
