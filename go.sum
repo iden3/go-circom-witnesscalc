@@ -1,6 +1,8 @@
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0 h1:i462o439ZjprVSFSZLZxcsoAe592sZB1rci2Z8j4wdk=
+github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0/go.mod h1:N0Wam8K1arqPXNWjMo21EXnBPOPp36vB07FNRdD2geA=
 github.com/iden3/go-wasm3 v0.0.0-20200402130624-e1345ab8c2a7 h1:aLAgPNvdB9gblNkJ2cuVPAYQA8x13t5I1VRc8nQqEx0=
 github.com/iden3/go-wasm3 v0.0.0-20200402130624-e1345ab8c2a7/go.mod h1:1bJhxagpZXimqKwdrz4T1LX02SWAEBNrGM+yGpqOn5I=
 github.com/iden3/go-wasm3 v0.0.0-20200407092348-656263e6984f h1:3c4OK2ufLtTs2ieQm3EsmjZB0WYhh9x/V00ZBClmgCc=

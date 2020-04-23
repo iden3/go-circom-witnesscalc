@@ -115,7 +115,7 @@ func TestWitnessCalcNConstraints(t *testing.T) {
 		log.Printf("Circuit compilation took %v\n", elapsed)
 
 		wasmFilename := fmt.Sprintf("nconstraints-%v.wasm", n)
-		var inputs = map[string]interface{}{"in": new(big.Int).SetInt64(2)}
+		var inputs = []Input{Input{Name: "in", Value: new(big.Int).SetInt64(2)}}
 
 		runtime := wasm3.NewRuntime(&wasm3.Config{
 			Environment: wasm3.NewEnvironment(),

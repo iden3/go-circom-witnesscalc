@@ -6,7 +6,14 @@ import (
 	"hash/fnv"
 	"math/big"
 	"reflect"
+
+	"github.com/iancoleman/orderedmap"
 )
+
+type Input struct {
+	Name  string
+	Value interface{}
+}
 
 // swap the order of the bytes in a slice.  This allows flipping the endianness.
 func swap(b []byte) []byte {
@@ -47,18 +54,19 @@ func parseInput(v interface{}) (interface{}, error) {
 // ParseInputs parses WitnessCalc inputs from JSON that consist of a map of
 // types which contain a recursive combination of: numbers, base-10 encoded
 // numbers in string format, arrays.
-func ParseInputs(inputsJSON []byte) (map[string]interface{}, error) {
-	inputsRAW := make(map[string]interface{})
+func ParseInputs(inputsJSON []byte) ([]Input, error) {
+	inputsRAW := orderedmap.New()
 	if err := json.Unmarshal(inputsJSON, &inputsRAW); err != nil {
 		return nil, err
 	}
-	inputs := make(map[string]interface{})
-	for inputName, inputValue := range inputsRAW {
+	inputs := make([]Input, len(inputsRAW.Keys()))
+	for i, inputName := range inputsRAW.Keys() {
+		inputValue, _ := inputsRAW.Get(inputName)
 		v, err := parseInput(inputValue)
 		if err != nil {
 			return nil, err
 		}
-		inputs[inputName] = v
+		inputs[i] = Input{Name: inputName, Value: v}
 	}
 	return inputs, nil
 }

@@ -114,7 +114,6 @@ func newWitnessCalcFns(r *wasm3.Runtime, m *wasm3.Module) (*witnessCalcFns, erro
 	}
 	_setSignal, err := r.FindFunction("setSignal")
 	if err != nil {
-		println("B")
 		return nil, err
 	}
 	setSignal := func(cIdx, component, signal, pVal int32) error {
@@ -376,7 +375,7 @@ func (wc *WitnessCalculator) loadFr(p int32) *big.Int {
 }
 
 // doCalculateWitness is an internal function that calculates the witness.
-func (wc *WitnessCalculator) doCalculateWitness(inputs map[string]interface{}, sanityCheck bool) error {
+func (wc *WitnessCalculator) doCalculateWitness(inputs []Input, sanityCheck bool) error {
 	sanityCheckVal := int32(0)
 	if sanityCheck {
 		sanityCheckVal = 1
@@ -387,7 +386,8 @@ func (wc *WitnessCalculator) doCalculateWitness(inputs map[string]interface{}, s
 	pSigOffset := wc.allocInt()
 	pFr := wc.allocFr()
 
-	for inputName, inputValue := range inputs {
+	for _, input := range inputs {
+		inputName, inputValue := input.Name, input.Value
 		hMSB, hLSB := fnvHash(inputName)
 		wc.fns.getSignalOffset32(pSigOffset, 0, hMSB, hLSB)
 		sigOffset := wc.getInt(pSigOffset)
@@ -402,7 +402,7 @@ func (wc *WitnessCalculator) doCalculateWitness(inputs map[string]interface{}, s
 }
 
 // CalculateWitness calculates the witness given the inputs.
-func (wc *WitnessCalculator) CalculateWitness(inputs map[string]interface{}, sanityCheck bool) ([]*big.Int, error) {
+func (wc *WitnessCalculator) CalculateWitness(inputs []Input, sanityCheck bool) ([]*big.Int, error) {
 	oldMemFreePos := wc.memFreePos()
 
 	if err := wc.doCalculateWitness(inputs, sanityCheck); err != nil {
@@ -423,7 +423,7 @@ func (wc *WitnessCalculator) CalculateWitness(inputs map[string]interface{}, san
 }
 
 // CalculateWitness calculates the witness in binary given the inputs.
-func (wc *WitnessCalculator) CalculateBinWitness(inputs map[string]interface{}, sanityCheck bool) ([]byte, error) {
+func (wc *WitnessCalculator) CalculateBinWitness(inputs []Input, sanityCheck bool) ([]byte, error) {
 	oldMemFreePos := wc.memFreePos()
 
 	if err := wc.doCalculateWitness(inputs, sanityCheck); err != nil {

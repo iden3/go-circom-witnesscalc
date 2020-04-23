@@ -39,13 +39,13 @@ func TestParseInputs(t *testing.T) {
 
 	a, err := ParseInputs([]byte(`{"a": 1, "b": "2"}`))
 	require.Nil(t, err)
-	assert.Equal(t, map[string]interface{}{"a": one, "b": two}, a)
+	assert.Equal(t, []Input{Input{"a", one}, Input{"b", two}}, a)
 
 	b, err := ParseInputs([]byte(`{"a": 1, "b": [2, 3]}`))
 	require.Nil(t, err)
-	assert.Equal(t, map[string]interface{}{"a": one, "b": []interface{}{two, three}}, b)
+	assert.Equal(t, []Input{Input{"a", one}, Input{"b", []interface{}{two, three}}}, b)
 
 	c, err := ParseInputs([]byte(`{"a": 1, "b": [[1, 2], [3, 4]]}`))
 	require.Nil(t, err)
-	assert.Equal(t, map[string]interface{}{"a": one, "b": []interface{}{[]interface{}{one, two}, []interface{}{three, four}}}, c)
+	assert.Equal(t, []Input{Input{"a", one}, Input{"b", []interface{}{[]interface{}{one, two}, []interface{}{three, four}}}}, c)
 }
