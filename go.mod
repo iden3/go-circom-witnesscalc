@@ -8,3 +8,5 @@ require (
 	github.com/stretchr/testify v1.5.1
 	gopkg.in/go-playground/assert.v1 v1.2.1
 )
+
+replace github.com/iden3/go-wasm3 => ../new/go-wasm3

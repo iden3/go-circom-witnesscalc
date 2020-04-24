@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"reflect"
 	"unsafe"
 
 	wasm3 "github.com/iden3/go-wasm3"
@@ -23,11 +24,62 @@ type witnessCalcFns struct {
 	getWitnessBuffer  func() (int32, error)
 }
 
+func getStack(sp unsafe.Pointer, length int) []uint64 {
+	var data = (*uint64)(sp)
+	var header reflect.SliceHeader
+	header = *(*reflect.SliceHeader)(unsafe.Pointer(&header))
+	header.Data = uintptr(unsafe.Pointer(data))
+	header.Len = int(length)
+	header.Cap = int(length)
+	return *(*[]uint64)(unsafe.Pointer(&header))
+}
+
+func getMem(r *wasm3.Runtime, _mem unsafe.Pointer) []byte {
+	var data = (*uint8)(_mem)
+	length := r.GetAllocatedMemoryLength()
+	var header reflect.SliceHeader
+	header = *(*reflect.SliceHeader)(unsafe.Pointer(&header))
+	header.Data = uintptr(unsafe.Pointer(data))
+	header.Len = int(length)
+	header.Cap = int(length)
+	return *(*[]byte)(unsafe.Pointer(&header))
+}
+
+func getStr(mem []byte, p uint64) string {
+	var buf bytes.Buffer
+	for ; mem[p] != 0; p++ {
+		buf.WriteByte(mem[p])
+	}
+	return buf.String()
+}
+
 // newWitnessCalcFns builds the witnessCalcFns from the loaded WitnessCalc WASM
 // module in the runtime.  Imported functions (logging) are binded to dummy functions.
-func newWitnessCalcFns(r *wasm3.Runtime, m *wasm3.Module) (*witnessCalcFns, error) {
+func newWitnessCalcFns(r *wasm3.Runtime, m *wasm3.Module, wc *WitnessCalculator) (*witnessCalcFns, error) {
 	r.AttachFunction("runtime", "error", "v(iiiiii)", wasm3.CallbackFunction(
-		func(runtime wasm3.RuntimeT, sp unsafe.Pointer, mem unsafe.Pointer) int {
+		func(runtime wasm3.RuntimeT, sp unsafe.Pointer, _mem unsafe.Pointer) int {
+			// func(code, pstr, a, b, c, d)
+
+			stack := getStack(sp, 6)
+			mem := getMem(r, _mem)
+
+			code := stack[0]
+			pstr := stack[1]
+			a := stack[2]
+			b := stack[3]
+			c := stack[4]
+			d := stack[5]
+
+			var errStr string
+			if code == 7 {
+				errStr = fmt.Sprintf("%s %v != %v %s",
+					getStr(mem, pstr), wc.loadFr(int32(b)), wc.loadFr(int32(c)), getStr(mem, d))
+			} else {
+				errStr = fmt.Sprintf("%s %v %v %v %v", getStr(mem, pstr), a, b, c, getStr(mem, d))
+			}
+
+			// fmt.Println("%v %v %v %v %v %v", code, pstr, a, b, c, d)
+			fmt.Printf("$$$ ERR (%v) %v\n", code, errStr)
 			return 0
 		},
 	))
@@ -53,6 +105,7 @@ func newWitnessCalcFns(r *wasm3.Runtime, m *wasm3.Module) (*witnessCalcFns, erro
 	))
 	r.AttachFunction("runtime", "log", "v(i)", wasm3.CallbackFunction(
 		func(runtime wasm3.RuntimeT, sp unsafe.Pointer, mem unsafe.Pointer) int {
+			println("$$$ LOG")
 			return 0
 		},
 	))
@@ -204,7 +257,8 @@ type WitnessCalculator struct {
 // NewWitnessCalculator creates a new WitnessCalculator from the WitnessCalc
 // loaded WASM module in the runtime.
 func NewWitnessCalculator(runtime *wasm3.Runtime, module *wasm3.Module) (*WitnessCalculator, error) {
-	fns, err := newWitnessCalcFns(runtime, module)
+	var wc WitnessCalculator
+	fns, err := newWitnessCalcFns(runtime, module, &wc)
 	if err != nil {
 		return nil, err
 	}
@@ -241,21 +295,18 @@ func NewWitnessCalculator(runtime *wasm3.Runtime, module *wasm3.Module) (*Witnes
 	shortMin := new(big.Int).Set(prime)
 	shortMin.Sub(shortMin, shortMax)
 
-	return &WitnessCalculator{
-		n32:    n32,
-		prime:  prime,
-		mask32: mask32,
-		nVars:  nVars,
-		n64:    n64,
-		r:      r,
-		rInv:   rInv,
-
-		shortMin: shortMin,
-		shortMax: shortMax,
-
-		runtime: runtime,
-		fns:     fns,
-	}, nil
+	wc.n32 = n32
+	wc.prime = prime
+	wc.mask32 = mask32
+	wc.nVars = nVars
+	wc.n64 = n64
+	wc.r = r
+	wc.rInv = rInv
+	wc.shortMin = shortMin
+	wc.shortMax = shortMax
+	wc.runtime = runtime
+	wc.fns = fns
+	return &wc, nil
 }
 
 // loadBigInt loads a *big.Int from the runtime memory at position p.
@@ -263,9 +314,12 @@ func (wc *WitnessCalculator) loadBigInt(p int32, n int32) *big.Int {
 	return loadBigInt(wc.runtime, p, n)
 }
 
+var zero32 [32]byte
+
 // storeBigInt stores a *big.Int into the runtime memory at position p.
 func (wc *WitnessCalculator) storeBigInt(p int32, v *big.Int) {
 	bigIntBytes := swap(v.Bytes())
+	copy(wc.runtime.Memory()[p:p+32], zero32[:])
 	copy(wc.runtime.Memory()[p:p+int32(len(bigIntBytes))], bigIntBytes)
 }
 
@@ -335,10 +389,13 @@ func (wc *WitnessCalculator) setLongNormal(p int32, v *big.Int) {
 // storeFr stores a Field element in the runtime memory at position p.
 func (wc *WitnessCalculator) storeFr(p int32, v *big.Int) {
 	if v.Cmp(wc.shortMax) == -1 {
+		// println(">>>", p, "store ShortPositive")
 		wc.setShortPositive(p, v)
 	} else if v.Cmp(wc.shortMin) >= 0 {
+		// println(">>>", p, "store ShortNegative")
 		wc.setShortNegative(p, v)
 	} else {
+		// println(">>>", p, "store LongNromal")
 		wc.setLongNormal(p, v)
 	}
 }
@@ -357,18 +414,30 @@ func (wc *WitnessCalculator) loadFr(p int32) *big.Int {
 	if (m[p+4+3] & 0x80) != 0 {
 		res := wc.loadBigInt(p+8, wc.n32)
 		if (m[p+4+3] & 0x40) != 0 {
+			if debug {
+				// println(">>>", p, "load A")
+			}
 			return wc.fromMontgomery(res)
 		} else {
+			if debug {
+				// println(">>>", p, "load B")
+			}
 			return res
 		}
 	} else {
 		if (m[p+3] & 0x40) != 0 {
+			if debug {
+				// println(">>>", p, "load C")
+			}
 			res := wc.loadBigInt(p, 4) // res
 			res.Sub(res, wc.shortMax)  // res - max
 			res.Add(wc.prime, res)     // res - max + prime
 			res.Sub(res, wc.shortMax)  // res - max + (prime - max)
 			return res
 		} else {
+			if debug {
+				// println(">>>", p, "load D")
+			}
 			return wc.loadBigInt(p, 4)
 		}
 	}
@@ -394,12 +463,15 @@ func (wc *WitnessCalculator) doCalculateWitness(inputs []Input, sanityCheck bool
 		fSlice := flatSlice(inputValue)
 		for i, value := range fSlice {
 			wc.storeFr(pFr, value)
+			// fmt.Println(">>> signalOff", sigOffset+int32(i))
 			wc.fns.setSignal(0, 0, sigOffset+int32(i), pFr)
 		}
 	}
 
 	return nil
 }
+
+var debug bool
 
 // CalculateWitness calculates the witness given the inputs.
 func (wc *WitnessCalculator) CalculateWitness(inputs []Input, sanityCheck bool) ([]*big.Int, error) {
@@ -414,6 +486,11 @@ func (wc *WitnessCalculator) CalculateWitness(inputs []Input, sanityCheck bool) 
 		pWitness, err := wc.fns.getPWitness(i)
 		if err != nil {
 			return nil, err
+		}
+		if i < 4 {
+			debug = true
+		} else {
+			debug = false
 		}
 		w[i] = wc.loadFr(pWitness)
 	}
