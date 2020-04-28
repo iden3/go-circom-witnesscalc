@@ -430,7 +430,7 @@ func (wc *WitnessCalculator) loadFr(p int32) *big.Int {
 }
 
 // doCalculateWitness is an internal function that calculates the witness.
-func (wc *WitnessCalculator) doCalculateWitness(inputs []Input, sanityCheck bool) error {
+func (wc *WitnessCalculator) doCalculateWitness(inputs map[string]interface{}, sanityCheck bool) error {
 	sanityCheckVal := int32(0)
 	if sanityCheck {
 		sanityCheckVal = 1
@@ -441,8 +441,7 @@ func (wc *WitnessCalculator) doCalculateWitness(inputs []Input, sanityCheck bool
 	pSigOffset := wc.allocInt()
 	pFr := wc.allocFr()
 
-	for _, input := range inputs {
-		inputName, inputValue := input.Name, input.Value
+	for inputName, inputValue := range inputs {
 		hMSB, hLSB := fnvHash(inputName)
 		wc.fns.getSignalOffset32(pSigOffset, 0, hMSB, hLSB)
 		sigOffset := wc.getInt(pSigOffset)
@@ -459,7 +458,7 @@ func (wc *WitnessCalculator) doCalculateWitness(inputs []Input, sanityCheck bool
 var debug bool
 
 // CalculateWitness calculates the witness given the inputs.
-func (wc *WitnessCalculator) CalculateWitness(inputs []Input, sanityCheck bool) ([]*big.Int, error) {
+func (wc *WitnessCalculator) CalculateWitness(inputs map[string]interface{}, sanityCheck bool) ([]*big.Int, error) {
 	oldMemFreePos := wc.memFreePos()
 
 	if err := wc.doCalculateWitness(inputs, sanityCheck); err != nil {
@@ -485,7 +484,7 @@ func (wc *WitnessCalculator) CalculateWitness(inputs []Input, sanityCheck bool) 
 }
 
 // CalculateWitness calculates the witness in binary given the inputs.
-func (wc *WitnessCalculator) CalculateBinWitness(inputs []Input, sanityCheck bool) ([]byte, error) {
+func (wc *WitnessCalculator) CalculateBinWitness(inputs map[string]interface{}, sanityCheck bool) ([]byte, error) {
 	oldMemFreePos := wc.memFreePos()
 
 	if err := wc.doCalculateWitness(inputs, sanityCheck); err != nil {
