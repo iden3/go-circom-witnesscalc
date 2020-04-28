@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"unsafe"
 
+	log "github.com/sirupsen/logrus"
+
 	wasm3 "github.com/iden3/go-wasm3"
 )
 
@@ -73,13 +75,13 @@ func newWitnessCalcFns(r *wasm3.Runtime, m *wasm3.Module, wc *WitnessCalculator)
 			var errStr string
 			if code == 7 {
 				errStr = fmt.Sprintf("%s %v != %v %s",
-					getStr(mem, pstr), wc.loadFr(int32(b)), wc.loadFr(int32(c)), getStr(mem, d))
+					getStr(mem, pstr),
+					wc.loadFr(int32(b)), wc.loadFr(int32(c)), getStr(mem, d))
 			} else {
-				errStr = fmt.Sprintf("%s %v %v %v %v", getStr(mem, pstr), a, b, c, getStr(mem, d))
+				errStr = fmt.Sprintf("%s %v %v %v %v",
+					getStr(mem, pstr), a, b, c, getStr(mem, d))
 			}
-
-			// fmt.Println("%v %v %v %v %v %v", code, pstr, a, b, c, d)
-			fmt.Printf("$$$ ERR (%v) %v\n", code, errStr)
+			log.Errorf("WitnessCalculator WASM Error (%v): %v", code, errStr)
 			return 0
 		},
 	))
@@ -105,7 +107,6 @@ func newWitnessCalcFns(r *wasm3.Runtime, m *wasm3.Module, wc *WitnessCalculator)
 	))
 	r.AttachFunction("runtime", "log", "v(i)", wasm3.CallbackFunction(
 		func(runtime wasm3.RuntimeT, sp unsafe.Pointer, mem unsafe.Pointer) int {
-			println("$$$ LOG")
 			return 0
 		},
 	))
@@ -389,13 +390,10 @@ func (wc *WitnessCalculator) setLongNormal(p int32, v *big.Int) {
 // storeFr stores a Field element in the runtime memory at position p.
 func (wc *WitnessCalculator) storeFr(p int32, v *big.Int) {
 	if v.Cmp(wc.shortMax) == -1 {
-		// println(">>>", p, "store ShortPositive")
 		wc.setShortPositive(p, v)
 	} else if v.Cmp(wc.shortMin) >= 0 {
-		// println(">>>", p, "store ShortNegative")
 		wc.setShortNegative(p, v)
 	} else {
-		// println(">>>", p, "store LongNromal")
 		wc.setLongNormal(p, v)
 	}
 }
@@ -414,30 +412,18 @@ func (wc *WitnessCalculator) loadFr(p int32) *big.Int {
 	if (m[p+4+3] & 0x80) != 0 {
 		res := wc.loadBigInt(p+8, wc.n32)
 		if (m[p+4+3] & 0x40) != 0 {
-			if debug {
-				// println(">>>", p, "load A")
-			}
 			return wc.fromMontgomery(res)
 		} else {
-			if debug {
-				// println(">>>", p, "load B")
-			}
 			return res
 		}
 	} else {
 		if (m[p+3] & 0x40) != 0 {
-			if debug {
-				// println(">>>", p, "load C")
-			}
 			res := wc.loadBigInt(p, 4) // res
 			res.Sub(res, wc.shortMax)  // res - max
 			res.Add(wc.prime, res)     // res - max + prime
 			res.Sub(res, wc.shortMax)  // res - max + (prime - max)
 			return res
 		} else {
-			if debug {
-				// println(">>>", p, "load D")
-			}
 			return wc.loadBigInt(p, 4)
 		}
 	}
@@ -463,7 +449,6 @@ func (wc *WitnessCalculator) doCalculateWitness(inputs []Input, sanityCheck bool
 		fSlice := flatSlice(inputValue)
 		for i, value := range fSlice {
 			wc.storeFr(pFr, value)
-			// fmt.Println(">>> signalOff", sigOffset+int32(i))
 			wc.fns.setSignal(0, 0, sigOffset+int32(i), pFr)
 		}
 	}
