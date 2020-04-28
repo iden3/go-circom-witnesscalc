@@ -7,5 +7,3 @@ require (
 	github.com/sirupsen/logrus v1.5.0
 	github.com/stretchr/testify v1.5.1
 )
-
-replace github.com/iden3/go-wasm3 => ../new/go-wasm3
