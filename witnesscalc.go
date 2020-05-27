@@ -455,8 +455,6 @@ func (wc *WitnessCalculator) doCalculateWitness(inputs map[string]interface{}, s
 	return nil
 }
 
-var debug bool
-
 // CalculateWitness calculates the witness given the inputs.
 func (wc *WitnessCalculator) CalculateWitness(inputs map[string]interface{}, sanityCheck bool) ([]*big.Int, error) {
 	oldMemFreePos := wc.memFreePos()
@@ -470,11 +468,6 @@ func (wc *WitnessCalculator) CalculateWitness(inputs map[string]interface{}, san
 		pWitness, err := wc.fns.getPWitness(i)
 		if err != nil {
 			return nil, err
-		}
-		if i < 4 {
-			debug = true
-		} else {
-			debug = false
 		}
 		w[i] = wc.loadFr(pWitness)
 	}
