@@ -87,10 +87,8 @@ func NewCircom2WitnessCalculator(wasmBytes []byte, sanityCheck bool) (*Circom2Wi
 		return nil, err
 	}
 
-	getInputSignalSize, err := instance.Exports.GetFunction("getInputSignalSize")
-	if err != nil {
-		return nil, err
-	}
+	// this function is missing in wasm files generated with circom version prior to v2.0.4
+	getInputSignalSize, _ := instance.Exports.GetFunction("getInputSignalSize")
 
 	getInputSize, err := instance.Exports.GetFunction("getInputSize")
 	if err != nil {
@@ -309,20 +307,24 @@ func (wc *Circom2WitnessCalculator) doCalculateWitness(inputs map[string]interfa
 	for inputName, inputValue := range inputs {
 		hMSB, hLSB := fnvHash(inputName)
 		fSlice := flatSlice(inputValue)
-		signalSize, err := wc.getInputSignalSize(hMSB, hLSB)
-		if err != nil {
-			return err
+
+		if wc.getInputSignalSize != nil {
+			signalSize, err := wc.getInputSignalSize(hMSB, hLSB)
+			if err != nil {
+				return err
+			}
+
+			if signalSize.(int32) < 0 {
+				return fmt.Errorf("signal %s not found", inputName)
+			}
+			if len(fSlice) < int(signalSize.(int32)) {
+				return fmt.Errorf("not enough values for input signal %s", inputName)
+			}
+			if len(fSlice) > int(signalSize.(int32)) {
+				return fmt.Errorf("too many values for input signal %s", inputName)
+			}
 		}
 
-		if signalSize.(int32) < 0 {
-			return fmt.Errorf("signal %s not found", inputName)
-		}
-		if len(fSlice) < int(signalSize.(int32)) {
-			return fmt.Errorf("not enough values for input signal %s", inputName)
-		}
-		if len(fSlice) > int(signalSize.(int32)) {
-			return fmt.Errorf("too many values for input signal %s", inputName)
-		}
 		for i := 0; i < len(fSlice); i++ {
 			arrFr, err := toArray32(fSlice[i], int(wc.n32))
 			if err != nil {
